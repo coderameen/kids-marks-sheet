@@ -2,7 +2,10 @@
 
 One project: **Next.js** + **`/api`** on Vercel. No Render. No Turso. No third-party database sites.
 
-## 1. Create Postgres in Vercel (free storage)
+After deploy, **student leaderboard** and **admin login** work immediately using the bundled database.  
+Connect **Postgres** below when you want **every phone and laptop to see the same updates** when you add points or edit students.
+
+## 1. Create Postgres in Vercel (free storage, optional at first)
 
 1. Open your project on [Vercel](https://vercel.com/syeda-sumera-amreen-s-projects).
 2. Go to **Storage** tab → **Create Database** → **Postgres** (Neon, included with Vercel).

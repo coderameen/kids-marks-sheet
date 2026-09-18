@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/server/auth";
+import { apiError } from "@/lib/server/apiRoute";
 import { db, rowToObject, studentPayload } from "@/lib/server/db";
 import { parseStudentFields } from "@/lib/server/parse";
 
@@ -7,6 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  try {
   const c = await db();
   const result = await c.execute(`
     SELECT s.*,
@@ -25,9 +27,13 @@ export async function GET() {
     return d;
   });
   return NextResponse.json({ students });
+  } catch (e) {
+    return apiError(e, "students GET");
+  }
 }
 
 export async function POST(req: Request) {
+  try {
   const auth = await requireAdmin(req);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -54,4 +60,7 @@ export async function POST(req: Request) {
   );
   delete student.photo_blob;
   return NextResponse.json({ student }, { status: 201 });
+  } catch (e) {
+    return apiError(e, "students POST");
+  }
 }

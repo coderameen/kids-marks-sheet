@@ -1,11 +1,14 @@
 import { createClient, type Client, type InValue } from "@libsql/client";
 import { neon } from "@neondatabase/serverless";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { ADMIN_PASSWORD, ADMIN_USERNAME } from "@/lib/server/config";
 import { hashPassword } from "@/lib/server/auth";
 
 export const SEED_DATE = "2026-09-18";
+
+const WRITE_SQL = /^\s*(INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|REPLACE)/i;
 
 let sqlite: Client | null = null;
 let pgSql: ReturnType<typeof neon> | null = null;
@@ -29,10 +32,15 @@ function shouldUsePostgres() {
   return Boolean(postgresConnectionString());
 }
 
-function requirePostgresOnVercel() {
-  if (isVercelRuntime() && !postgresConnectionString()) {
+/** Live site without Postgres: read bundled marks.db (login + leaderboard work). */
+export function isBundledReadOnlyDb() {
+  return isVercelRuntime() && !shouldUsePostgres();
+}
+
+export function assertDbWritable() {
+  if (isBundledReadOnlyDb()) {
     throw new Error(
-      "Database not linked. In Vercel open this project → Storage → Create Postgres → Connect to olympiad-exams, then redeploy."
+      "To save changes for all devices, connect Postgres in Vercel (Storage → Postgres → this project) and redeploy."
     );
   }
 }
@@ -46,10 +54,26 @@ function getPg() {
   return pgSql;
 }
 
+function bundledDbSourcePath() {
+  return path.join(process.cwd(), "data", "marks.db");
+}
+
+/** On Vercel, copy bundled DB to /tmp so SQLite can open the file reliably. */
+function sqliteFilePath() {
+  if (!isBundledReadOnlyDb()) {
+    return bundledDbSourcePath();
+  }
+  const src = bundledDbSourcePath();
+  const dest = path.join(os.tmpdir(), "olympiad-marks.db");
+  if (!fs.existsSync(dest)) {
+    fs.copyFileSync(src, dest);
+  }
+  return dest;
+}
+
 function getSqlite() {
   if (!sqlite) {
-    const filePath = path.join(process.cwd(), "data", "marks.db");
-    sqlite = createClient({ url: `file:${filePath}` });
+    sqlite = createClient({ url: `file:${sqliteFilePath()}` });
   }
   return sqlite;
 }
@@ -67,9 +91,12 @@ export type DbResult = {
 
 async function rawExecute(
   query: string,
-  args: unknown[] = []
+  args: unknown[] = [],
+  opts?: { allowWrite?: boolean }
 ): Promise<DbResult> {
-  requirePostgresOnVercel();
+  if (!opts?.allowWrite && WRITE_SQL.test(query.trim())) {
+    assertDbWritable();
+  }
 
   const pg = getPg();
   if (pg && shouldUsePostgres()) {
@@ -171,12 +198,14 @@ async function seedStudent() {
       sid = Number(existing.rows[0].id);
       await rawExecute(
         "UPDATE students SET nick_name = ?, age = ?, subject = ? WHERE id = ?",
-        [opts.nick_name, opts.age, opts.subject, sid]
+        [opts.nick_name, opts.age, opts.subject, sid],
+        { allowWrite: true }
       );
     } else {
       const ins = await rawExecute(
         "INSERT INTO students (full_name, nick_name, age, subject) VALUES (?, ?, ?, ?)",
-        [opts.full_name, opts.nick_name, opts.age, opts.subject]
+        [opts.full_name, opts.nick_name, opts.age, opts.subject],
+        { allowWrite: true }
       );
       sid = Number(ins.lastInsertRowid);
     }
@@ -190,7 +219,8 @@ async function seedStudent() {
       if (file) {
         await rawExecute(
           "UPDATE students SET photo_blob = ?, photo_mime = ?, profile_photo = ? WHERE id = ?",
-          [file.data, file.mime, opts.photoFile, sid]
+          [file.data, file.mime, opts.photoFile, sid],
+          { allowWrite: true }
         );
       }
     }
@@ -203,7 +233,8 @@ async function seedStudent() {
       await rawExecute(
         `INSERT INTO point_entries (student_id, points, questions_count, entry_date)
          VALUES (?, ?, ?, ?)`,
-        [sid, opts.points, opts.questions, SEED_DATE]
+        [sid, opts.points, opts.questions, SEED_DATE],
+        { allowWrite: true }
       );
     }
   }
@@ -286,7 +317,13 @@ export async function ensureDb() {
     return;
   }
   initPromise = (async () => {
-    requirePostgresOnVercel();
+    if (isBundledReadOnlyDb()) {
+      if (!fs.existsSync(bundledDbSourcePath())) {
+        throw new Error("Database file missing on server.");
+      }
+      sqliteFilePath();
+      return;
+    }
 
     if (shouldUsePostgres()) {
       await initPostgres();
@@ -302,7 +339,8 @@ export async function ensureDb() {
       const pw = await hashPassword(ADMIN_PASSWORD);
       await rawExecute(
         "INSERT INTO admins (username, password_hash) VALUES (?, ?)",
-        [ADMIN_USERNAME, pw]
+        [ADMIN_USERNAME, pw],
+        { allowWrite: true }
       );
     }
 
