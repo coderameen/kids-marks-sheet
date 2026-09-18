@@ -1,56 +1,61 @@
-# Free deployment (Vercel + Render)
+# Deploy on Vercel only (free)
 
-The **Next.js** app runs on [Vercel](https://vercel.com) (free). The **Flask API + SQLite** runs on [Render](https://render.com) (free). Everyone uses the **same** `marks.db` and photos from the repo.
+Everything runs in **one Vercel project**: Next.js UI + `/api` routes + database.
 
-The browser only talks to **your Vercel domain** (`/api/...`). Vercel proxies to Render — no localhost, no “access other apps on this device” prompt.
+No Render. The browser only talks to **`https://olympiad-exams.vercel.app`** — no localhost, no “access other apps” prompts.
 
-## 1. API on Render (free)
+## 1. Database (Turso — free, required for live data)
 
-1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**.
-2. Connect [kids-marks-sheet](https://github.com/coderameen/kids-marks-sheet).
-3. Apply `render.yaml` → **`olympiad-exams-api`** → Deploy.
-4. Copy the URL, e.g. `https://olympiad-exams-api.onrender.com` (wait until **Live**).
+Vercel serverless cannot keep a writable SQLite file. Use **Turso** (free SQLite cloud):
 
-First request after idle may take ~30s (free tier cold start).
+1. Sign up at [turso.tech](https://turso.tech) (free tier).
+2. Install CLI: `curl -sSfL https://get.tur.so/install.sh | bash` (or see Turso docs on Windows).
+3. Create DB and import your data:
+   ```bash
+   turso db create olympiad-exams
+   turso db import olympiad-exams --from-file "frontend/data/marks.db"
+   turso db tokens create olympiad-exams
+   ```
+4. Copy **Database URL** and **token**.
 
-## 2. Frontend on Vercel (free)
+## 2. Vercel project
 
-1. [Vercel team](https://vercel.com/syeda-sumera-amreen-s-projects) → **Add New** → **Project** → import **kids-marks-sheet**.
+1. [Vercel team](https://vercel.com/syeda-sumera-amreen-s-projects) → **Add New** → **Project** → GitHub **kids-marks-sheet**.
 2. **Root Directory:** `frontend`
-3. **Project Name:** `olympiad-exams` (lowercase, no spaces)
+3. **Project Name:** `olympiad-exams`
 4. **Environment variables** (Production + Preview):
 
    | Name | Value |
    |------|--------|
-   | `API_URL` | `https://olympiad-exams-api.onrender.com` (your Render URL, no trailing slash) |
+   | `TURSO_DATABASE_URL` | `libsql://...` from Turso |
+   | `TURSO_AUTH_TOKEN` | token from Turso |
+   | `JWT_SECRET` | any long random string |
+   | `ADMIN_USERNAME` | `admin` (optional) |
+   | `ADMIN_PASSWORD` | your admin password (optional) |
 
-   Optional duplicate: `NEXT_PUBLIC_API_URL` same value (used at build for rewrites if `API_URL` missing).
-
-5. **Redeploy** after saving env vars.
+5. **Remove** old `API_URL` / Render URLs if you added them before.
+6. **Deploy**.
 
 Site: **https://olympiad-exams.vercel.app**
 
-## 3. Multiple devices
+## 3. Test
 
-Admin and students can open the same Vercel URL on any phone, tablet, or laptop. All use one shared database on Render.
+- https://olympiad-exams.vercel.app/api/health → `{"status":"ok"}`
+- https://olympiad-exams.vercel.app/student
+- https://olympiad-exams.vercel.app/admin/login → `admin` / `Ameen@0805`
 
-## 4. Troubleshooting “Load failed”
-
-- Render service must be **Live**; open the Render URL `/api/health` — should show `{"status":"ok"}`.
-- Vercel must have **`API_URL`** set, then **Redeploy**.
-- Click **Block** on any old browser “access other apps” prompt — that was from the previous localhost bug (now fixed).
+All phones and laptops use the **same Turso database**.
 
 ## Local development
 
 ```powershell
-# Terminal 1 — backend
-cd backend
-.\.venv\Scripts\activate
-python app.py
-
-# Terminal 2 — frontend
 cd frontend
+npm install
 npm run dev
 ```
 
-Rewrites proxy `http://localhost:3000/api` → `http://127.0.0.1:5000/api`.
+Uses `frontend/data/marks.db` automatically (no Turso needed on your PC).
+
+Optional: double-click `frontend\RUN-DEV.cmd`.
+
+Backend Flask folder is **legacy/local only**; production uses Next.js `/api` only.
