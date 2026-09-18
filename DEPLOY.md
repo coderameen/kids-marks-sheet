@@ -1,52 +1,40 @@
 # Deploy on Vercel only (free)
 
-Everything runs in **one Vercel project**: Next.js UI + `/api` routes + database.
+One project: **Next.js** + **`/api`** on Vercel. No Render. No Turso. No third-party database sites.
 
-No Render. The browser only talks to **`https://olympiad-exams.vercel.app`** — no localhost, no “access other apps” prompts.
+## 1. Create Postgres in Vercel (free storage)
 
-## 1. Database (Turso — free, required for live data)
+1. Open your project on [Vercel](https://vercel.com/syeda-sumera-amreen-s-projects).
+2. Go to **Storage** tab → **Create Database** → **Postgres** (Neon, included with Vercel).
+3. Connect it to project **`olympiad-exams`**.  
+   Vercel adds **`POSTGRES_URL`** automatically — you do not copy URLs from other websites.
 
-Vercel serverless cannot keep a writable SQLite file. Use **Turso** (free SQLite cloud):
+## 2. Project settings
 
-1. Sign up at [turso.tech](https://turso.tech) (free tier).
-2. Install CLI: `curl -sSfL https://get.tur.so/install.sh | bash` (or see Turso docs on Windows).
-3. Create DB and import your data:
-   ```bash
-   turso db create olympiad-exams
-   turso db import olympiad-exams --from-file "frontend/data/marks.db"
-   turso db tokens create olympiad-exams
-   ```
-4. Copy **Database URL** and **token**.
+- **Root Directory:** `frontend`
+- **Project Name:** `olympiad-exams`
+- **Remove** old variables: `API_URL`, `TURSO_*`, Render URLs.
 
-## 2. Vercel project
+Optional env vars:
 
-1. [Vercel team](https://vercel.com/syeda-sumera-amreen-s-projects) → **Add New** → **Project** → GitHub **kids-marks-sheet**.
-2. **Root Directory:** `frontend`
-3. **Project Name:** `olympiad-exams`
-4. **Environment variables** (Production + Preview):
+| Name | Purpose |
+|------|---------|
+| `JWT_SECRET` | Long random string (recommended) |
+| `ADMIN_PASSWORD` | Change admin password (optional) |
 
-   | Name | Value |
-   |------|--------|
-   | `TURSO_DATABASE_URL` | `libsql://...` from Turso |
-   | `TURSO_AUTH_TOKEN` | token from Turso |
-   | `JWT_SECRET` | any long random string |
-   | `ADMIN_USERNAME` | `admin` (optional) |
-   | `ADMIN_PASSWORD` | your admin password (optional) |
+## 3. Deploy
 
-5. **Remove** old `API_URL` / Render URLs if you added them before.
-6. **Deploy**.
+Push to GitHub or click **Redeploy**. On first API call, tables and seed data are created (Saruu ❤️, Asruu ❤️, 3 points each, admin login).
 
-Site: **https://olympiad-exams.vercel.app**
+## 4. Test
 
-## 3. Test
-
-- https://olympiad-exams.vercel.app/api/health → `{"status":"ok"}`
+- https://olympiad-exams.vercel.app/api/health
 - https://olympiad-exams.vercel.app/student
 - https://olympiad-exams.vercel.app/admin/login → `admin` / `Ameen@0805`
 
-All phones and laptops use the **same Turso database**.
+All devices share the **same Vercel Postgres** database.
 
-## Local development
+## Local development (your PC)
 
 ```powershell
 cd frontend
@@ -54,8 +42,5 @@ npm install
 npm run dev
 ```
 
-Uses `frontend/data/marks.db` automatically (no Turso needed on your PC).
-
-Optional: double-click `frontend\RUN-DEV.cmd`.
-
-Backend Flask folder is **legacy/local only**; production uses Next.js `/api` only.
+Uses `frontend/data/marks.db` on your computer — no Postgres needed locally.  
+Or double-click **`frontend\RUN-DEV.cmd`**.
