@@ -1,6 +1,6 @@
 import asyncio
+import re
 from datetime import datetime, timedelta, timezone
-
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_file
@@ -13,7 +13,9 @@ from database import get_db, init_db, row_to_dict, student_payload
 from photos import delete_photo, mime_for_path, photo_path, save_photo
 
 app = Flask(__name__)
-CORS(app, origins=CORS_ORIGINS, supports_credentials=True)
+_cors_origins: list = [o.strip() for o in CORS_ORIGINS if o.strip()]
+_cors_origins.append(re.compile(r"^https://.*\.vercel\.app$"))
+CORS(app, origins=_cors_origins, supports_credentials=True)
 
 
 def run_async(coro):

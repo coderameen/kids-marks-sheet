@@ -16,8 +16,8 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "Asra Sara Star Points",
-  description: "Fun marks and leaderboard for young learners",
+  title: "Olympiad Exams — Star Points",
+  description: "Fun marks and leaderboard for Olympiad learners",
 };
 
 export const viewport = {
