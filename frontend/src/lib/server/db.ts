@@ -16,12 +16,43 @@ let initPromise: Promise<void> | null = null;
 
 /** Vercel Storage / Neon may inject any of these names. */
 export function postgresConnectionString(): string | undefined {
-  return (
+  const pooled =
     process.env.POSTGRES_URL ||
     process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.NEON_DATABASE_URL;
+  if (pooled) return pooled;
+
+  const direct =
     process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.POSTGRES_PRISMA_URL
-  );
+    process.env.DATABASE_URL_UNPOOLED;
+  if (direct) return direct;
+
+  const host =
+    process.env.PGHOST ||
+    process.env.POSTGRES_HOST ||
+    process.env.PGHOST_UNPOOLED;
+  const user = process.env.PGUSER || process.env.POSTGRES_USER;
+  const password = process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD;
+  const database = process.env.PGDATABASE || process.env.POSTGRES_DATABASE;
+  if (host && user && password && database) {
+    const userEnc = encodeURIComponent(user);
+    const passEnc = encodeURIComponent(password);
+    return `postgresql://${userEnc}:${passEnc}@${host}/${database}?sslmode=require`;
+  }
+
+  return undefined;
+}
+
+/** Safe booleans for /api/health (never exposes secret values). */
+export function postgresEnvHints() {
+  return {
+    DATABASE_URL: Boolean(process.env.DATABASE_URL),
+    DATABASE_URL_UNPOOLED: Boolean(process.env.DATABASE_URL_UNPOOLED),
+    POSTGRES_URL: Boolean(process.env.POSTGRES_URL),
+    PGHOST: Boolean(process.env.PGHOST || process.env.POSTGRES_HOST),
+    linked: Boolean(postgresConnectionString()),
+  };
 }
 
 function isVercelRuntime() {
