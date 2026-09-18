@@ -1,6 +1,6 @@
-# Asra Sara Star Points
+# kids-marks-sheet (Asra Sara Star Points)
 
-Admin and student dashboards for tracking learning points, leaderboards, and in-app marks reports.
+Marks tracking system for preschool kids — admin and student dashboards for learning points, leaderboards, and in-app marks reports.
 
 ## Stack
 
