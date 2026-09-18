@@ -1,0 +1,13 @@
+node_modules/
+.next/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.local
+*.db-journal
+.DS_Store
+backend/data/uploads/_tmp_*
+
+# Committed on purpose: backend/data/marks.db and backend/data/uploads/*.png
