@@ -1,5 +1,5 @@
 import { createClient, type Client, type InValue } from "@libsql/client";
-import { sql as vercelSql } from "@vercel/postgres";
+import { neon } from "@neondatabase/serverless";
 import fs from "fs";
 import path from "path";
 import { ADMIN_PASSWORD, ADMIN_USERNAME } from "@/lib/server/config";
@@ -8,10 +8,42 @@ import { hashPassword } from "@/lib/server/auth";
 export const SEED_DATE = "2026-09-18";
 
 let sqlite: Client | null = null;
+let pgSql: ReturnType<typeof neon> | null = null;
 let initPromise: Promise<void> | null = null;
 
-function isPostgresEnabled() {
-  return Boolean(process.env.POSTGRES_URL);
+/** Vercel Storage / Neon may inject any of these names. */
+export function postgresConnectionString(): string | undefined {
+  return (
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_PRISMA_URL
+  );
+}
+
+function isVercelRuntime() {
+  return process.env.VERCEL === "1";
+}
+
+function shouldUsePostgres() {
+  return Boolean(postgresConnectionString());
+}
+
+function requirePostgresOnVercel() {
+  if (isVercelRuntime() && !postgresConnectionString()) {
+    throw new Error(
+      "Database not linked. In Vercel open this project → Storage → Create Postgres → Connect to olympiad-exams, then redeploy."
+    );
+  }
+}
+
+function getPg() {
+  const url = postgresConnectionString();
+  if (!url) return null;
+  if (!pgSql) {
+    pgSql = neon(url, { fullResults: true });
+  }
+  return pgSql;
 }
 
 function getSqlite() {
@@ -37,22 +69,32 @@ async function rawExecute(
   query: string,
   args: unknown[] = []
 ): Promise<DbResult> {
-  if (isPostgresEnabled()) {
+  requirePostgresOnVercel();
+
+  const pg = getPg();
+  if (pg && shouldUsePostgres()) {
     const isInsert = /^\s*INSERT/i.test(query.trim());
-    const pg = toPgParams(query, args);
-    let text = pg.text;
-    const pgArgs = pg.args;
+    const pgParams = toPgParams(query, args);
+    let text = pgParams.text;
+    const pgArgs = pgParams.args;
     if (isInsert && !/RETURNING/i.test(text)) {
       text = `${text.replace(/;\s*$/, "")} RETURNING id`;
     }
-    const result = await vercelSql.query(text, pgArgs);
-    const rows = result.rows as Record<string, unknown>[];
+    const result = await pg(text, pgArgs as never[]);
+    const rows = (
+      Array.isArray(result)
+        ? result
+        : "rows" in result && Array.isArray(result.rows)
+          ? result.rows
+          : []
+    ) as Record<string, unknown>[];
     return {
       rows,
       lastInsertRowid:
         rows[0]?.id != null ? Number(rows[0].id) : undefined,
     };
   }
+
   const r = await getSqlite().execute({
     sql: query,
     args: args as InValue[],
@@ -197,8 +239,10 @@ async function initPostgres() {
     `CREATE INDEX IF NOT EXISTS idx_point_entries_student ON point_entries(student_id)`,
     `CREATE INDEX IF NOT EXISTS idx_point_entries_date ON point_entries(entry_date)`,
   ];
+  const pg = getPg();
+  if (!pg) throw new Error("Postgres URL missing");
   for (const s of statements) {
-    await vercelSql.query(s);
+    await pg(s);
   }
 }
 
@@ -242,7 +286,9 @@ export async function ensureDb() {
     return;
   }
   initPromise = (async () => {
-    if (isPostgresEnabled()) {
+    requirePostgresOnVercel();
+
+    if (shouldUsePostgres()) {
       await initPostgres();
     } else {
       await initSqlite();

@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  try {
   const c = await db();
   const result = await c.execute(`
     SELECT s.id, s.full_name, s.nick_name, s.age, s.subject, s.profile_photo, s.photo_blob,
@@ -39,4 +40,10 @@ export async function GET() {
     });
   }
   return NextResponse.json({ leaderboard: board });
+  } catch (e) {
+    console.error("leaderboard", e);
+    const message =
+      e instanceof Error ? e.message : "Could not load leaderboard";
+    return NextResponse.json({ error: message }, { status: 503 });
+  }
 }
