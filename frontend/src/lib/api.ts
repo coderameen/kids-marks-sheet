@@ -1,5 +1,4 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:5000";
+import { apiBase } from "@/lib/apiBase";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -24,10 +23,17 @@ async function request<T>(
     const token = getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${apiBase()}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new Error(
+      "Could not reach the server. Wait a moment and try again (live API may be waking up)."
+    );
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || res.statusText || "Request failed");
@@ -117,11 +123,16 @@ export const api = {
     const token = getToken();
     const form = new FormData();
     form.append("photo", file);
-    const res = await fetch(`${API_BASE}/api/students/${studentId}/photo`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${apiBase()}/api/students/${studentId}/photo`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+    } catch {
+      throw new Error("Could not reach the server.");
+    }
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || "Upload failed");
