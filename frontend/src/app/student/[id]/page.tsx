@@ -95,6 +95,7 @@ export default function StudentProfilePage() {
                   <p className="font-bold text-slate-800">{e.entry_date}</p>
                   <p className="text-sm text-slate-500">
                     {e.questions_count} Q · {e.points} pts
+                    {e.note ? ` · ${e.note}` : ""}
                   </p>
                 </div>
                 <span className="text-2xl">⭐</span>

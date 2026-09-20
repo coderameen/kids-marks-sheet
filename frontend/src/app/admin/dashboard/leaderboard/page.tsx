@@ -8,14 +8,7 @@ export default function AdminLeaderboardPage() {
   return (
     <AdminGuard>
       <AdminShell title="Leaderboard">
-        <p className="mb-6 text-slate-600">
-          Who is leading the star race? Tap a student to see their points by
-          date.
-        </p>
-        <LeaderboardPanel
-          studentBasePath="/admin/dashboard/students"
-          showLinks
-        />
+        <LeaderboardPanel />
       </AdminShell>
     </AdminGuard>
   );

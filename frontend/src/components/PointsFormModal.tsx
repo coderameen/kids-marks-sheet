@@ -16,6 +16,7 @@ export default function PointsFormModal({
     points: number;
     questions_count: number;
     entry_date: string;
+    note?: string;
   }) => Promise<void>;
   mode?: "add" | "edit";
   initial?: PointEntry | null;
@@ -25,6 +26,7 @@ export default function PointsFormModal({
   const [entryDate, setEntryDate] = useState(() =>
     new Date().toISOString().slice(0, 10)
   );
+  const [topic, setTopic] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,10 +36,12 @@ export default function PointsFormModal({
       setPoints(String(initial.points));
       setQuestions(String(initial.questions_count));
       setEntryDate(initial.entry_date.slice(0, 10));
+      setTopic(initial.note || "");
     } else {
       setPoints("");
       setQuestions("1");
       setEntryDate(new Date().toISOString().slice(0, 10));
+      setTopic("");
     }
     setError("");
   }, [open, mode, initial]);
@@ -67,10 +71,12 @@ export default function PointsFormModal({
         points: p,
         questions_count: q,
         entry_date: entryDate,
+        note: topic.trim() || undefined,
       });
       if (mode === "add") {
         setPoints("");
         setQuestions("1");
+        setTopic("");
       }
       onClose();
     } catch (err) {
@@ -97,6 +103,20 @@ export default function PointsFormModal({
               required
               value={entryDate}
               onChange={(e) => setEntryDate(e.target.value)}
+              className="mt-1 w-full rounded-xl border-2 border-violet-100 px-4 py-3 text-base focus:border-cyan-400 focus:outline-none"
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm font-semibold text-slate-700">
+              Subject / Topic{" "}
+              <span className="font-normal text-slate-400">(optional)</span>
+            </span>
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g. Math — fractions"
+              maxLength={120}
               className="mt-1 w-full rounded-xl border-2 border-violet-100 px-4 py-3 text-base focus:border-cyan-400 focus:outline-none"
             />
           </label>

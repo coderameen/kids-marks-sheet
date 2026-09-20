@@ -156,6 +156,23 @@ async def update_student(student_id):
         await db.close()
 
 
+@app.route("/api/students/<int:student_id>", methods=["DELETE"])
+@require_admin
+async def delete_student(student_id):
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT id FROM students WHERE id = ?", (student_id,))
+        if not await cursor.fetchone():
+            return jsonify({"error": "Student not found"}), 404
+        await db.execute("DELETE FROM point_entries WHERE student_id = ?", (student_id,))
+        await db.execute("DELETE FROM students WHERE id = ?", (student_id,))
+        await db.commit()
+        delete_photo(student_id)
+        return jsonify({"ok": True})
+    finally:
+        await db.close()
+
+
 @app.route("/api/students/<int:student_id>", methods=["GET"])
 async def get_student(student_id):
     db = await get_db()
@@ -356,6 +373,35 @@ async def update_points(student_id, entry_id):
         await db.close()
 
 
+@app.route("/api/students/<int:student_id>/points/<int:entry_id>", methods=["DELETE"])
+@require_admin
+async def delete_points(student_id, entry_id):
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            """
+            SELECT id FROM point_entries
+            WHERE id = ? AND student_id = ?
+            """,
+            (entry_id, student_id),
+        )
+        if not await cursor.fetchone():
+            return jsonify({"error": "Point entry not found"}), 404
+        await db.execute(
+            "DELETE FROM point_entries WHERE id = ? AND student_id = ?",
+            (entry_id, student_id),
+        )
+        await db.commit()
+        cursor = await db.execute(
+            "SELECT COALESCE(SUM(points), 0) AS total FROM point_entries WHERE student_id = ?",
+            (student_id,),
+        )
+        total = (await cursor.fetchone())["total"]
+        return jsonify({"ok": True, "total_points": int(total)})
+    finally:
+        await db.close()
+
+
 @app.route("/api/leaderboard", methods=["GET"])
 async def leaderboard():
     db = await get_db()
@@ -453,7 +499,6 @@ async def _marks_report_rows(period: str):
 
 
 @app.route("/api/reports/marks", methods=["GET"])
-@require_admin
 async def view_marks_report():
     period = (request.args.get("period") or "monthly").lower()
     if period not in ("weekly", "monthly", "yearly"):

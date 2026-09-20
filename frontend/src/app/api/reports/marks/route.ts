@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
 import { periodStart } from "@/lib/server/parse";
 
@@ -7,10 +6,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const auth = await requireAdmin(req);
-  if ("error" in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
   const url = new URL(req.url);
   const period = (url.searchParams.get("period") || "monthly").toLowerCase();
   if (!["weekly", "monthly", "yearly"].includes(period)) {

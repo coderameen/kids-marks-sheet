@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import type { MarksReport } from "@/types";
 
@@ -14,10 +14,16 @@ export default function MarksReportModal({
   period,
   open,
   onClose,
+  studentId,
+  studentName,
+  title,
 }: {
   period: "weekly" | "monthly" | "yearly" | null;
   open: boolean;
   onClose: () => void;
+  studentId?: number | null;
+  studentName?: string;
+  title?: string;
 }) {
   const [report, setReport] = useState<MarksReport | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,7 +41,25 @@ export default function MarksReportModal({
       .finally(() => setLoading(false));
   }, [open, period]);
 
+  const display = useMemo(() => {
+    if (!report) return null;
+    if (studentId == null) return report;
+    const entries = report.entries.filter((e) => e.student_id === studentId);
+    return {
+      ...report,
+      entries,
+      entry_count: entries.length,
+      total_points: entries.reduce((s, e) => s + e.points, 0),
+    };
+  }, [report, studentId]);
+
   if (!open || !period) return null;
+
+  const heading =
+    title ||
+    (studentName
+      ? `${studentName} — report`
+      : `📊 ${periodLabels[period]} marks report`);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
@@ -54,12 +78,12 @@ export default function MarksReportModal({
                 id="report-title"
                 className="font-display text-xl font-bold text-slate-800 sm:text-2xl"
               >
-                📊 {periodLabels[period]} marks report
+                {heading}
               </h2>
-              {report && (
+              {display && (
                 <p className="mt-1 text-sm text-slate-500">
-                  {report.from_date} → {report.to_date} · {report.entry_count}{" "}
-                  entries · {report.total_points} total points
+                  {display.from_date} → {display.to_date} · {display.entry_count}{" "}
+                  entries · {display.total_points} total points
                 </p>
               )}
             </div>
@@ -82,31 +106,38 @@ export default function MarksReportModal({
           {error && (
             <p className="rounded-xl bg-red-50 p-4 text-red-700">{error}</p>
           )}
-          {!loading && !error && report && report.entries.length === 0 && (
+          {!loading && !error && display && display.entries.length === 0 && (
             <p className="rounded-2xl bg-violet-50 p-8 text-center text-slate-600">
               No marks in this {periodLabels[period].toLowerCase()} period yet.
             </p>
           )}
-          {!loading && !error && report && report.entries.length > 0 && (
+          {!loading && !error && display && display.entries.length > 0 && (
             <>
               <div className="space-y-3 md:hidden">
-                {report.entries.map((e, i) => (
+                {display.entries.map((e, i) => (
                   <article
                     key={`${e.student_id}-${e.entry_date}-${i}`}
                     className="rounded-2xl border border-violet-100 bg-violet-50/40 p-4 text-sm"
                   >
-                    <p className="font-display font-bold text-slate-800">
-                      {e.nick_name}{" "}
-                      <span className="font-normal text-slate-500">
-                        ({e.full_name})
-                      </span>
-                    </p>
-                    <p className="text-slate-600">
-                      Age {e.age} · {e.subject}
-                    </p>
+                    {studentId == null && (
+                      <>
+                        <p className="font-display font-bold text-slate-800">
+                          {e.nick_name}{" "}
+                          <span className="font-normal text-slate-500">
+                            ({e.full_name})
+                          </span>
+                        </p>
+                        <p className="text-slate-600">
+                          Age {e.age} · {e.subject}
+                        </p>
+                      </>
+                    )}
                     <p className="mt-2 font-semibold text-slate-800">
                       📅 {e.entry_date}
                     </p>
+                    {e.note ? (
+                      <p className="text-slate-600">Topic: {e.note}</p>
+                    ) : null}
                     <p className="text-slate-600">
                       {e.questions_count} questions · {e.points} points
                     </p>
@@ -117,23 +148,33 @@ export default function MarksReportModal({
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="bg-violet-50 text-xs uppercase text-slate-500">
                     <tr>
-                      <th className="px-4 py-3">Student</th>
-                      <th className="px-4 py-3">Age</th>
-                      <th className="px-4 py-3">Subject</th>
+                      {studentId == null && (
+                        <>
+                          <th className="px-4 py-3">Student</th>
+                          <th className="px-4 py-3">Age</th>
+                          <th className="px-4 py-3">Subject</th>
+                        </>
+                      )}
+                      <th className="px-4 py-3">Topic</th>
                       <th className="px-4 py-3">Date</th>
                       <th className="px-4 py-3">Questions</th>
                       <th className="px-4 py-3">Points</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-violet-50">
-                    {report.entries.map((e, i) => (
+                    {display.entries.map((e, i) => (
                       <tr key={`${e.student_id}-${e.entry_date}-${i}`}>
-                        <td className="px-4 py-3">
-                          <p className="font-semibold">{e.nick_name}</p>
-                          <p className="text-slate-500">{e.full_name}</p>
-                        </td>
-                        <td className="px-4 py-3">{e.age}</td>
-                        <td className="px-4 py-3">{e.subject}</td>
+                        {studentId == null && (
+                          <>
+                            <td className="px-4 py-3">
+                              <p className="font-semibold">{e.nick_name}</p>
+                              <p className="text-slate-500">{e.full_name}</p>
+                            </td>
+                            <td className="px-4 py-3">{e.age}</td>
+                            <td className="px-4 py-3">{e.subject}</td>
+                          </>
+                        )}
+                        <td className="px-4 py-3">{e.note || "—"}</td>
                         <td className="px-4 py-3">{e.entry_date}</td>
                         <td className="px-4 py-3">{e.questions_count}</td>
                         <td className="px-4 py-3 font-bold text-violet-600">

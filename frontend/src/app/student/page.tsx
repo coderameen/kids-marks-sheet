@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import LeaderboardPanel from "@/components/LeaderboardPanel";
 
@@ -11,7 +13,7 @@ export default function StudentPage() {
               Student zone
             </p>
             <h1 className="font-display text-2xl font-bold text-slate-800 sm:text-3xl">
-              🏆 Leaderboard
+              Leaderboard
             </h1>
           </div>
           <Link
@@ -23,10 +25,7 @@ export default function StudentPage() {
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-        <p className="mb-6 text-center text-slate-600">
-          Tap a friend to see their star points on each day! 🌟
-        </p>
-        <LeaderboardPanel studentBasePath="/student" showLinks />
+        <LeaderboardPanel />
       </main>
     </div>
   );

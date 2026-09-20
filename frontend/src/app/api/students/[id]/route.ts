@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/server/auth";
+import { apiError } from "@/lib/server/apiRoute";
 import { db, rowToObject, studentPayload } from "@/lib/server/db";
 import { parseStudentFields } from "@/lib/server/parse";
 
@@ -72,4 +73,34 @@ export async function PUT(req: Request, { params }: Ctx) {
   );
   delete student.photo_blob;
   return NextResponse.json({ student });
+}
+
+export async function DELETE(req: Request, { params }: Ctx) {
+  try {
+    const auth = await requireAdmin(req);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    const student_id = Number(params.id);
+    const c = await db();
+    const exists = await c.execute({
+      sql: "SELECT id FROM students WHERE id = ?",
+      args: [student_id],
+    });
+    if (!exists.rows.length) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+    }
+    // Delete points first (SQLite FK cascade may be off)
+    await c.execute({
+      sql: "DELETE FROM point_entries WHERE student_id = ?",
+      args: [student_id],
+    });
+    await c.execute({
+      sql: "DELETE FROM students WHERE id = ?",
+      args: [student_id],
+    });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return apiError(e, "students DELETE");
+  }
 }

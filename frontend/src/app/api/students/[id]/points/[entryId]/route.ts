@@ -57,3 +57,32 @@ export async function PUT(req: Request, { params }: Ctx) {
     total_points: Number(totalRow.rows[0].total),
   });
 }
+
+export async function DELETE(req: Request, { params }: Ctx) {
+  const auth = await requireAdmin(req);
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+  const student_id = Number(params.id);
+  const entry_id = Number(params.entryId);
+  const c = await db();
+  const exists = await c.execute({
+    sql: "SELECT id FROM point_entries WHERE id = ? AND student_id = ?",
+    args: [entry_id, student_id],
+  });
+  if (!exists.rows.length) {
+    return NextResponse.json({ error: "Point entry not found" }, { status: 404 });
+  }
+  await c.execute({
+    sql: "DELETE FROM point_entries WHERE id = ? AND student_id = ?",
+    args: [entry_id, student_id],
+  });
+  const totalRow = await c.execute({
+    sql: "SELECT COALESCE(SUM(points), 0) AS total FROM point_entries WHERE student_id = ?",
+    args: [student_id],
+  });
+  return NextResponse.json({
+    ok: true,
+    total_points: Number(totalRow.rows[0].total),
+  });
+}

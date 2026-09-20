@@ -80,6 +80,12 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  deleteStudent: (id: number) =>
+    request<{ ok: boolean }>(`/api/students/${id}`, {
+      method: "DELETE",
+      auth: true,
+    }),
+
   getStudent: (id: number) =>
     request<{
       student: import("@/types").Student;
@@ -112,6 +118,12 @@ export const api = {
         auth: true,
         body: JSON.stringify(data),
       }
+    ),
+
+  deletePoints: (studentId: number, entryId: number) =>
+    request<{ ok: boolean; total_points: number }>(
+      `/api/students/${studentId}/points/${entryId}`,
+      { method: "DELETE", auth: true }
     ),
 
   getLeaderboard: () =>
@@ -148,7 +160,6 @@ export const api = {
 
   getMarksReport: (period: "weekly" | "monthly" | "yearly") =>
     request<import("@/types").MarksReport>(
-      `/api/reports/marks?period=${period}`,
-      { auth: true }
+      `/api/reports/marks?period=${period}`
     ),
 };

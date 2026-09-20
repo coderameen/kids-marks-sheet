@@ -15,6 +15,7 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editStudent, setEditStudent] = useState<Student | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -36,6 +37,22 @@ export default function AdminDashboardPage() {
   function openEdit(s: Student) {
     setEditStudent(s);
     setModalOpen(true);
+  }
+
+  async function handleDelete(s: Student) {
+    const ok = window.confirm(
+      `Delete ${s.nick_name}? This removes their points and cannot be undone.`
+    );
+    if (!ok) return;
+    setDeletingId(s.id);
+    try {
+      await api.deleteStudent(s.id);
+      setStudents((prev) => prev.filter((x) => x.id !== s.id));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not delete student");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -125,6 +142,14 @@ export default function AdminDashboardPage() {
                     >
                       Edit
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(s)}
+                      disabled={deletingId === s.id}
+                      className="min-h-[44px] rounded-xl border-2 border-rose-200 px-4 font-semibold text-rose-600 disabled:opacity-50"
+                    >
+                      {deletingId === s.id ? "…" : "Delete"}
+                    </button>
                   </div>
                 </article>
               ))}
@@ -179,6 +204,14 @@ export default function AdminDashboardPage() {
                             className="rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-600 hover:bg-slate-50"
                           >
                             Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(s)}
+                            disabled={deletingId === s.id}
+                            className="rounded-lg border border-rose-200 px-3 py-2 font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                          >
+                            {deletingId === s.id ? "…" : "Delete"}
                           </button>
                           <Link
                             href={`/admin/dashboard/students/${s.id}`}
