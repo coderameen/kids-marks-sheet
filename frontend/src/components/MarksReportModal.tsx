@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { MarksReport } from "@/types";
 
@@ -31,27 +31,62 @@ export default function MarksReportModal({
 
   useEffect(() => {
     if (!open || !period) return;
+    let cancelled = false;
     setLoading(true);
     setError("");
     setReport(null);
-    api
-      .getMarksReport(period)
-      .then(setReport)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [open, period, studentId]);
 
-  const display = useMemo(() => {
-    if (!report) return null;
-    if (studentId == null) return report;
-    const entries = report.entries.filter((e) => e.student_id === studentId);
-    return {
-      ...report,
-      entries,
-      entry_count: entries.length,
-      total_points: entries.reduce((s, e) => s + e.points, 0),
+    (async () => {
+      try {
+        // Student-scoped report: use the same student endpoint as profile history
+        // so deletes always match what the report shows.
+        if (studentId != null) {
+          const [{ periodStart, todayUtc }, studentRes] = await Promise.all([
+            import("@/lib/period"),
+            api.getStudent(studentId),
+          ]);
+          const start = periodStart(period);
+          if (!start) throw new Error("Invalid period");
+          const entries = studentRes.entries
+            .filter((e) => e.entry_date >= start)
+            .map((e) => ({
+              student_id: studentRes.student.id,
+              full_name: studentRes.student.full_name,
+              nick_name: studentRes.student.nick_name,
+              age: studentRes.student.age,
+              subject: studentRes.student.subject,
+              entry_date: e.entry_date,
+              questions_count: e.questions_count,
+              points: e.points,
+              note: e.note || "",
+            }));
+          if (cancelled) return;
+          setReport({
+            period,
+            from_date: start,
+            to_date: todayUtc(),
+            entries,
+            entry_count: entries.length,
+            total_points: entries.reduce((s, e) => s + e.points, 0),
+          });
+        } else {
+          const data = await api.getMarksReport(period);
+          if (cancelled) return;
+          setReport(data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load report");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-  }, [report, studentId]);
+  }, [open, period, studentId]);
 
   if (!open || !period) return null;
 
@@ -80,10 +115,10 @@ export default function MarksReportModal({
               >
                 {heading}
               </h2>
-              {display && (
+              {report && (
                 <p className="mt-1 text-sm text-slate-500">
-                  {display.from_date} → {display.to_date} · {display.entry_count}{" "}
-                  entries · {display.total_points} total points
+                  {report.from_date} → {report.to_date} · {report.entry_count}{" "}
+                  entries · {report.total_points} total points
                 </p>
               )}
             </div>
@@ -106,17 +141,17 @@ export default function MarksReportModal({
           {error && (
             <p className="rounded-xl bg-red-50 p-4 text-red-700">{error}</p>
           )}
-          {!loading && !error && display && display.entries.length === 0 && (
+          {!loading && !error && report && report.entries.length === 0 && (
             <p className="rounded-2xl bg-violet-50 p-8 text-center text-slate-600">
               No marks in this {periodLabels[period].toLowerCase()} period yet.
             </p>
           )}
-          {!loading && !error && display && display.entries.length > 0 && (
+          {!loading && !error && report && report.entries.length > 0 && (
             <>
               <div className="space-y-3 md:hidden">
-                {display.entries.map((e, i) => (
+                {report.entries.map((e, i) => (
                   <article
-                    key={`${e.student_id}-${e.entry_date}-${i}`}
+                    key={`${e.student_id}-${e.entry_date}-${e.points}-${i}`}
                     className="rounded-2xl border border-violet-100 bg-violet-50/40 p-4 text-sm"
                   >
                     {studentId == null && (
@@ -145,7 +180,7 @@ export default function MarksReportModal({
                 ))}
               </div>
               <div className="hidden overflow-x-auto rounded-xl border border-violet-100 md:block">
-                <table className="w-full min-w-[720px] text-left text-sm">
+                <table className="w-full min-w-[640px] text-left text-sm">
                   <thead className="bg-violet-50 text-xs uppercase text-slate-500">
                     <tr>
                       {studentId == null && (
@@ -162,8 +197,10 @@ export default function MarksReportModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-violet-50">
-                    {display.entries.map((e, i) => (
-                      <tr key={`${e.student_id}-${e.entry_date}-${i}`}>
+                    {report.entries.map((e, i) => (
+                      <tr
+                        key={`${e.student_id}-${e.entry_date}-${e.points}-${i}`}
+                      >
                         {studentId == null && (
                           <>
                             <td className="px-4 py-3">

@@ -15,13 +15,3 @@ export function parseStudentFields(data: Record<string, unknown>) {
   }
   return { full_name, nick_name, age, subject };
 }
-
-export function periodStart(period: string) {
-  const now = new Date();
-  const days =
-    period === "weekly" ? 7 : period === "monthly" ? 30 : period === "yearly" ? 365 : 0;
-  if (!days) return null;
-  const start = new Date(now);
-  start.setUTCDate(start.getUTCDate() - days);
-  return start.toISOString().slice(0, 10);
-}

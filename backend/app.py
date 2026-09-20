@@ -469,7 +469,7 @@ async def _marks_report_rows(period: str):
                    p.entry_date, p.questions_count, p.points, p.note
             FROM point_entries p
             JOIN students s ON s.id = p.student_id
-            WHERE date(p.entry_date) >= date(?)
+            WHERE p.entry_date >= ?
             ORDER BY s.full_name, p.entry_date, p.id
             """,
             (start,),

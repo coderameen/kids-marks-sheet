@@ -158,8 +158,14 @@ export const api = {
       { method: "DELETE", auth: true }
     ),
 
-  getMarksReport: (period: "weekly" | "monthly" | "yearly") =>
-    request<import("@/types").MarksReport>(
-      `/api/reports/marks?period=${period}`
-    ),
+  getMarksReport: (
+    period: "weekly" | "monthly" | "yearly",
+    studentId?: number | null
+  ) => {
+    const q = new URLSearchParams({ period });
+    if (studentId != null) q.set("student_id", String(studentId));
+    return request<import("@/types").MarksReport>(
+      `/api/reports/marks?${q.toString()}`
+    );
+  },
 };
