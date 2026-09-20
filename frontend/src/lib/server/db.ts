@@ -225,6 +225,7 @@ async function seedStudent() {
       [opts.full_name]
     );
     let sid: number;
+    let isNew = false;
     if (existing.rows.length) {
       sid = Number(existing.rows[0].id);
       await rawExecute(
@@ -239,6 +240,7 @@ async function seedStudent() {
         { allowWrite: true }
       );
       sid = Number(ins.lastInsertRowid);
+      isNew = true;
     }
 
     const photoRow = await rawExecute(
@@ -256,11 +258,8 @@ async function seedStudent() {
       }
     }
 
-    const pe = await rawExecute(
-      "SELECT id FROM point_entries WHERE student_id = ? AND entry_date = ?",
-      [sid, SEED_DATE]
-    );
-    if (!pe.rows.length) {
+    // Only seed default points for brand-new students — never restore after delete
+    if (isNew) {
       await rawExecute(
         `INSERT INTO point_entries (student_id, points, questions_count, entry_date)
          VALUES (?, ?, ?, ?)`,

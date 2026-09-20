@@ -39,7 +39,7 @@ export default function MarksReportModal({
       .then(setReport)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [open, period]);
+  }, [open, period, studentId]);
 
   const display = useMemo(() => {
     if (!report) return null;

@@ -43,12 +43,19 @@ export async function GET(req: Request) {
       note: r.note || "",
     };
   });
-  return NextResponse.json({
-    period,
-    from_date: start,
-    to_date: new Date().toISOString().slice(0, 10),
-    entries,
-    entry_count: entries.length,
-    total_points,
-  });
+  return NextResponse.json(
+    {
+      period,
+      from_date: start,
+      to_date: new Date().toISOString().slice(0, 10),
+      entries,
+      entry_count: entries.length,
+      total_points,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    }
+  );
 }

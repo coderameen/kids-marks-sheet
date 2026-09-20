@@ -43,6 +43,7 @@ async def _seed_student(
         (full_name,),
     )
     row = await cursor.fetchone()
+    created = False
     if row:
         sid = row["id"]
         await db.execute(
@@ -62,6 +63,7 @@ async def _seed_student(
             (full_name, nick_name, age, subject),
         )
         sid = cursor.lastrowid
+        created = True
 
     if seed_photo.is_file() and photo_path(sid) is None:
         filename = save_photo(sid, seed_photo)
@@ -70,14 +72,8 @@ async def _seed_student(
             (filename, sid),
         )
 
-    cursor = await db.execute(
-        """
-        SELECT id FROM point_entries
-        WHERE student_id = ? AND entry_date = ?
-        """,
-        (sid, entry_date),
-    )
-    if not await cursor.fetchone():
+    # Only seed default points for brand-new students — never restore after delete
+    if created:
         await db.execute(
             """
             INSERT INTO point_entries (student_id, points, questions_count, entry_date)
