@@ -141,13 +141,7 @@ function LeaderboardCard({
   );
 }
 
-export default function LeaderboardPanel({
-  studentBasePath: _studentBasePath = "/student",
-  showLinks: _showLinks = true,
-}: {
-  studentBasePath?: string;
-  showLinks?: boolean;
-}) {
+export default function LeaderboardPanel() {
   const [board, setBoard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
